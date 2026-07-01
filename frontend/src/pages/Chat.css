@@ -1,0 +1,57 @@
+.chat-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* =========================
+   DESKTOP (40 / 60 layout)
+========================= */
+
+.sidebar-wrapper {
+  width: 30%;
+  height: 100vh;
+  border-right: 1px solid #222;
+  overflow-y: auto;
+}
+
+.chat-wrapper {
+  width: 70%;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+/* =========================
+   MOBILE VIEW
+========================= */
+
+@media (max-width: 768px) {
+  .chat-container {
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  /* Sidebar full screen by default */
+  .sidebar-wrapper {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Chat hidden initially */
+  .chat-wrapper {
+    display: none;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* When chat opens */
+  .chat-wrapper.show-mobile-chat {
+    display: block;
+  }
+
+  /* Hide sidebar when chat open */
+  .sidebar-wrapper.hide-mobile {
+    display: none;
+  }
+}
