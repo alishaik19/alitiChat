@@ -1,66 +1,56 @@
+import dotenv from "dotenv";
+// ✅ Sabse pehle config load karein
+dotenv.config();
+
 import express from "express";
 import http from "http";
 import cors from "cors";
-import dotenv from "dotenv";
-import { Server } from "socket.io";
 
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import friendRoutes from "./routes/friendRoutes.js";
 
-dotenv.config();
+import { initSocket } from "./socket/socket.js";
 
 const app = express();
 const server = http.createServer(app);
 
-// socket
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-  },
-});
+// Debugging ke liye (Server start hote hi console mein dikhega)
+console.log("Checking FRONTEND_URL:", process.env.FRONTEND_URL);
 
-// middleware
-app.use(cors());
+initSocket(server);
+
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "*", // .env se origin uthayega
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  }),
+);
+
 app.use(express.json());
 
-// DB connect
+app.use("/api/auth", authRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/friends", friendRoutes);
+
+app.get("/", (req, res) => {
+  res.send("API is running...");
+});
+
 const startServer = async () => {
   try {
     await connectDB();
-
-    console.log("DB connected successfully");
-
-    // routes
-    app.use("/api/auth", authRoutes);
-    app.use("/api/messages", messageRoutes);
-    app.use("/api/users", userRoutes); // ✅ NEW ADDED
-
-    app.get("/", (req, res) => {
-      res.send("API is running...");
-    });
-
-    // socket
-    io.on("connection", (socket) => {
-      console.log("User connected:", socket.id);
-
-      socket.on("send_message", (data) => {
-        io.emit("receive_message", data);
-      });
-
-      socket.on("disconnect", () => {
-        console.log("User disconnected");
-      });
-    });
-
     const PORT = process.env.PORT || 5000;
-
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
     console.log("SERVER START ERROR:", error);
+    process.exit(1);
   }
 };
 

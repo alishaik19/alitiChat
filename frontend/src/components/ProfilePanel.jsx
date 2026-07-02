@@ -12,7 +12,7 @@ function getInitials(name = "") {
 }
 
 function ProfilePanel({ user, onClose, onSave, onLogout }) {
-  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [status, setStatus] = useState("Available");
   const [avatar, setAvatar] = useState("");
 
@@ -20,14 +20,13 @@ function ProfilePanel({ user, onClose, onSave, onLogout }) {
   const [darkMode, setDarkMode] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  // ✅ FIX: sync BOTH user prop + localStorage
+  // sync user
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user"));
-
     const activeUser = user || storedUser;
 
     if (activeUser) {
-      setName(activeUser.name || "");
+      setUsername(activeUser.username || activeUser.name || "");
       setStatus(activeUser.status || "Available");
       setAvatar(activeUser.avatar || "");
     }
@@ -58,106 +57,114 @@ function ProfilePanel({ user, onClose, onSave, onLogout }) {
     }
   };
 
-  // ✅ FIX: proper save (no stale user overwrite)
   const handleSave = async () => {
-  try {
-    const updated = {
-      userId: user?._id || user?.id, // ✅ FIX
-      name,
-      status,
-      avatar,
-    };
+    try {
+      const updated = {
+        userId: user?._id || user?.id,
+        status,
+        avatar, // ✅ Current state wala avatar bhej rahe hain
+      };
 
-    const res = await axios.put(
-      `${import.meta.env.VITE_API_URL}/api/users/update-profile`,
-      updated
-    );
+      const res = await axios.put(
+        `${import.meta.env.VITE_API_URL}/api/users/update-profile`,
+        updated,
+      );
 
-    localStorage.setItem("user", JSON.stringify(res.data.user));
+      // ✅ Fix: LocalStorage ko update karte waqt purana data aur naya data merge karein
+      const existingUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const newUserData = {
+        ...existingUser,
+        ...res.data.user,
+        avatar: res.data.user.avatar || avatar, // Backend se na aaye toh state wala use karein
+        username: username,
+      };
 
-    onSave?.(res.data.user);
-    onClose();
-  } catch (err) {
-    console.log("SAVE ERROR:", err.response?.data || err.message);
-  }
-};
+      localStorage.setItem("user", JSON.stringify(newUserData));
+
+      onSave?.(newUserData);
+      onClose();
+    } catch (err) {
+      console.log("SAVE ERROR:", err.response?.data || err.message);
+    }
+  };
 
   return (
     <>
-      <div className="panel-overlay" onClick={onClose} />
+      <div className="profile-overlay" onClick={onClose} />
 
       <div className="profile-panel">
-        <div className="panel-header">
+        <div className="profile-panel-header">
           <h3>Settings</h3>
-          <button className="close-btn" onClick={onClose}>
+          <button className="profile-close-btn" onClick={onClose}>
             ✕
           </button>
         </div>
 
-        <div className="panel-body">
+        <div className="profile-panel-body">
           {/* AVATAR */}
-          <div className="avatar-block">
+          <div className="profile-avatar-block">
             {avatar ? (
-              <img src={avatar} className="avatar-img" />
+              <img src={avatar} className="profile-avatar-img" />
             ) : (
-              <div className="avatar-fallback">{getInitials(name || "U")}</div>
+              <div className="profile-avatar-fallback">
+                {getInitials(username || "U")}
+              </div>
             )}
 
-            <label className="upload-btn">
+            <label className="profile-upload-btn">
               {uploading ? "Uploading..." : "Change Photo"}
               <input type="file" hidden onChange={handleAvatarUpload} />
             </label>
           </div>
 
-          {/* NAME */}
-          <label className="field">
-            <span>Name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} />
+          {/* USERNAME (READ ONLY) */}
+          <label className="profile-field">
+            <span>Username </span>
+            <input value={username} disabled />
           </label>
 
           {/* STATUS */}
-          <label className="field">
+          <label className="profile-field">
             <span>Status</span>
             <input value={status} onChange={(e) => setStatus(e.target.value)} />
           </label>
 
           {/* TOGGLES */}
-          <div className="toggle-row">
+          <div className="profile-toggle-row">
             <div>
-              <div className="toggle-label">Notifications</div>
-              <div className="toggle-sub">Get notified about messages</div>
+              <div className="profile-toggle-label">Notifications</div>
+              <div className="profile-toggle-sub">
+                Get notified about messages
+              </div>
             </div>
-
             <button
-              className={`toggle ${notifications ? "on" : ""}`}
+              className={`profile-toggle ${notifications ? "on" : ""}`}
               onClick={() => setNotifications(!notifications)}
             >
-              <span className="toggle-knob" />
+              <span className="profile-toggle-knob" />
             </button>
           </div>
 
-          <div className="toggle-row">
+          <div className="profile-toggle-row">
             <div>
-              <div className="toggle-label">Dark Mode</div>
-              <div className="toggle-sub">Better for night usage</div>
+              <div className="profile-toggle-label">Dark Mode</div>
+              <div className="profile-toggle-sub">Better for night usage</div>
             </div>
-
             <button
-              className={`toggle ${darkMode ? "on" : ""}`}
+              className={`profile-toggle ${darkMode ? "on" : ""}`}
               onClick={() => setDarkMode(!darkMode)}
             >
-              <span className="toggle-knob" />
+              <span className="profile-toggle-knob" />
             </button>
           </div>
         </div>
 
         {/* FOOTER */}
-        <div className="panel-footer">
-          <button className="logout-btn" onClick={onLogout}>
+        <div className="profile-panel-footer">
+          <button className="profile-logout-btn" onClick={onLogout}>
             Logout
           </button>
-
-          <button className="save-btn" onClick={handleSave}>
+          <button className="profile-save-btn" onClick={handleSave}>
             Save changes
           </button>
         </div>

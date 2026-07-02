@@ -14,8 +14,9 @@ function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
 
+    // Basic Validation
     if (!email.trim() || !password.trim()) {
-      setError("Email aur password dono zaroori hain");
+      setError("Please enter both email and password");
       return;
     }
 
@@ -23,68 +24,104 @@ function Login() {
       setLoading(true);
       setError("");
 
-      const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
+      const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
       const res = await axios.post(`${API}/api/auth/login`, {
         email,
         password,
       });
 
-      console.log("LOGIN SUCCESS:", res.data);
+      // Check if response has required data
+      if (!res.data?.token || !res.data?.user) {
+        setError("Invalid response from server");
+        setLoading(false);
+        return;
+      }
 
+      // 1. Save Token
       localStorage.setItem("token", res.data.token);
 
-      // 🔥 FIXED USER STORAGE (NO DATA LOSS)
+      // 2. Handle User Data & Avatar Persistence
+      const backendUser = res.data.user;
       const existingUser = JSON.parse(localStorage.getItem("user")) || {};
 
       const finalUser = {
-        ...existingUser,
-        ...res.data.user,
-        avatar: res.data.user.avatar ?? existingUser.avatar ?? "",
-        status: res.data.user.status ?? existingUser.status ?? "Available",
+        ...backendUser,
+        // Ensure ID is consistent (MongoDB uses _id)
+        id: backendUser.id || backendUser._id,
+        // Priority: Backend Avatar > LocalStorage Avatar > Empty String
+        avatar: backendUser.avatar || existingUser.avatar || "",
+        status: backendUser.status || existingUser.status || "Available",
       };
 
+      // 3. Save to LocalStorage
       localStorage.setItem("user", JSON.stringify(finalUser));
 
       setLoading(false);
       navigate("/chat");
     } catch (err) {
-      console.log("LOGIN ERROR:", err.response?.data);
+      console.error("LOGIN ERROR:", err);
 
-      setError(err.response?.data?.message || "Login failed");
+      if (err.code === "ERR_NETWORK") {
+        setError("Can't reach the server. Is your backend running?");
+      } else {
+        setError(err.response?.data?.message || "Invalid email or password");
+      }
       setLoading(false);
     }
   };
+
   return (
     <div className="auth-wrapper">
-      <div className="auth-glow" />
+      {/* Background Glows */}
+      <div className="auth-glow-1"></div>
+      <div className="auth-glow-2"></div>
 
       <div className="auth-card">
+        {/* Brand Logo */}
         <div className="auth-brand">
-          <div className="brand-mark">A</div>
+          <div className="brand-mark">
+            <img
+              src="/faviicon.png"
+              alt="Brand Logo"
+              className="brand-logo-img"
+            />
+          </div>
         </div>
 
         <h2 className="auth-title">Welcome back</h2>
-        <p className="auth-subtitle">Log in to continue to Aliti</p>
+        <p className="auth-subtitle">Log in to continue your conversations</p>
 
         <form onSubmit={handleLogin} noValidate>
+          {/* EMAIL FIELD */}
           <div className="field-group">
-            <label className="field-label">Email</label>
+            <label className="field-label">Email Address</label>
             <input
               type="email"
-              className="auth-input"
-              placeholder="you@example.com"
+              className={`auth-input ${error && !email ? "is-invalid" : ""}`}
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
+          {/* PASSWORD FIELD */}
           <div className="field-group">
-            <label className="field-label">Password</label>
+            <div className="label-row">
+              <label className="field-label">Password</label>
+              <Link
+                to="/forgot-password"
+                title="Forgot your password?"
+                className="forgot-link"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
             <div className="password-wrap">
               <input
                 type={showPassword ? "text" : "password"}
-                className="auth-input"
+                className={`auth-input ${error && !password ? "is-invalid" : ""}`}
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -93,60 +130,25 @@ function Login() {
                 type="button"
                 className="toggle-visibility"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? (
-                  <svg viewBox="0 0 24 24" width="18" height="18">
-                    <path
-                      d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8M9.5 5.3A9.6 9.6 0 0112 5c5 0 9 4.5 10 7-.4 1.1-1.2 2.4-2.3 3.6M6.2 6.6C4 8.1 2.4 10.1 2 12c1 2.5 5 7 10 7 1.3 0 2.6-.3 3.7-.8"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" width="18" height="18">
-                    <path
-                      d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="3"
-                      stroke="currentColor"
-                      strokeWidth="1.7"
-                      fill="none"
-                    />
-                  </svg>
-                )}
+                {showPassword ? "🙈" : "👁️"}
               </button>
             </div>
           </div>
 
-          {error && <div className="field-error">{error}</div>}
+          {/* ERROR ALERT */}
+          {error && <div className="server-error-alert">{error}</div>}
 
-          <div className="forgot-row">
-            <Link to="/" className="forgot-link">
-              Forgot password?
-            </Link>
-          </div>
-
+          {/* SUBMIT BUTTON */}
           <button className="auth-btn" type="submit" disabled={loading}>
-            {loading ? <span className="btn-spinner" /> : "Log in"}
+            {loading ? <span className="loader"></span> : "Log in"}
           </button>
         </form>
 
         <p className="switch-line">
           Don't have an account?{" "}
           <Link to="/register" className="switch-link">
-            Sign up
+            Sign up free
           </Link>
         </p>
       </div>
