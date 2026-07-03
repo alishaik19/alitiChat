@@ -21,7 +21,7 @@ initSocket(server);
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://aliti-chat.vercel.app/",
+  "https://aliti-chat.vercel.app",
 ];
 
 app.use(
