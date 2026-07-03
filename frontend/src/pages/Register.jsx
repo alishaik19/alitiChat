@@ -88,6 +88,9 @@ function Register() {
         },
       });
     } catch (err) {
+      console.error("REGISTER ERROR:", err);
+      console.error("RESPONSE:", err.response?.data);
+
       setServerError(err.response?.data?.message || "Registration failed");
     } finally {
       setLoading(false);
