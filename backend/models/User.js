@@ -13,35 +13,81 @@ const friendSchema = new mongoose.Schema({
     default: "pending",
   },
 
-  // per-user chat-list preferences — these live on MY copy of the
-  // friend entry only, so pinning/archiving a chat never affects
-  // what the other person sees on their side.
-  pinned: { type: Boolean, default: false },
-  archived: { type: Boolean, default: false },
+  pinned: {
+    type: Boolean,
+    default: false,
+  },
+
+  archived: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 const userSchema = new mongoose.Schema(
   {
-    username: { type: String, required: true, unique: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
 
-    avatar: { type: String, default: "" },
-    status: { type: String, default: "Available" },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    password: {
+      type: String,
+      required: true,
+    },
+
+    avatar: {
+      type: String,
+      default: "",
+    },
+
+    status: {
+      type: String,
+      default: "Available",
+    },
 
     friends: [friendSchema],
 
-    // ✅ PASSWORD RESET FIELDS (Nodemailer system ke liye zaroori)
+    // ✅ Email Verification
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    verificationOTP: {
+      type: String,
+      default: null,
+    },
+
+    verificationOTPExpires: {
+      type: Date,
+      default: null,
+    },
+
+    // ✅ Password Reset
     resetPasswordToken: {
       type: String,
-      default: undefined,
+      default: null,
     },
+
     resetPasswordExpires: {
       type: Date,
-      default: undefined,
+      default: null,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 export default mongoose.model("User", userSchema);

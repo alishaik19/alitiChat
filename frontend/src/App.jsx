@@ -9,6 +9,7 @@ import Chat from "./pages/Chat";
 import PageNotFound from "./PageNotFound";
 import ForgotPassword from "./ForgotPassword";
 import ResetPassword from "./ResetPassword"; // ✅ Yeh import add karna zaroori hai
+import VerifyEmail from "./VerifyEmail";
 
 // ✅ PROTECTED ROUTE: Sirf logged-in users ke liye
 function ProtectedRoute({ children }) {
@@ -66,6 +67,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/verify-email" element={<VerifyEmail />} />
 
         {/* ✅ Catch-all route (404 Page) - Hamesha sabse niche */}
         <Route path="*" element={<PageNotFound />} />

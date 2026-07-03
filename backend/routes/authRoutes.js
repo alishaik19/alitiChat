@@ -2,7 +2,9 @@ import express from "express";
 import {
   register,
   login,
-  forgotPassword, // ✅ verifyUser ki jagah forgotPassword (jo email bhejega)
+  verifyEmail,
+  resendOTP,
+  forgotPassword,
   resetPassword,
 } from "../controllers/authController.js";
 
@@ -12,10 +14,14 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/login", login);
 
-// ✅ FORGOT PASSWORD (Email bhejne ke liye)
+// EMAIL VERIFICATION
+router.post("/verify-email", verifyEmail);
+router.post("/resend-otp", resendOTP);
+
+// FORGOT PASSWORD
 router.post("/forgot-password", forgotPassword);
 
-// ✅ RESET PASSWORD (Gmail link se token lene ke liye)
+// RESET PASSWORD
 router.post("/reset-password/:token", resetPassword);
 
 export default router;

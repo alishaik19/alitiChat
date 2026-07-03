@@ -14,7 +14,6 @@ function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    // Basic Validation
     if (!email.trim() || !password.trim()) {
       setError("Please enter both email and password");
       return;
@@ -31,42 +30,49 @@ function Login() {
         password,
       });
 
-      // Check if response has required data
       if (!res.data?.token || !res.data?.user) {
         setError("Invalid response from server");
         setLoading(false);
         return;
       }
 
-      // 1. Save Token
+      // Save Token
       localStorage.setItem("token", res.data.token);
 
-      // 2. Handle User Data & Avatar Persistence
+      // Save User
       const backendUser = res.data.user;
       const existingUser = JSON.parse(localStorage.getItem("user")) || {};
 
       const finalUser = {
         ...backendUser,
-        // Ensure ID is consistent (MongoDB uses _id)
         id: backendUser.id || backendUser._id,
-        // Priority: Backend Avatar > LocalStorage Avatar > Empty String
         avatar: backendUser.avatar || existingUser.avatar || "",
         status: backendUser.status || existingUser.status || "Available",
       };
 
-      // 3. Save to LocalStorage
       localStorage.setItem("user", JSON.stringify(finalUser));
 
-      setLoading(false);
       navigate("/chat");
     } catch (err) {
       console.error("LOGIN ERROR:", err);
+
+      // Email not verified
+      if (
+        err.response?.status === 403 &&
+        err.response?.data?.message === "Please verify your email first"
+      ) {
+        navigate("/verify-email", {
+          state: { email },
+        });
+        return;
+      }
 
       if (err.code === "ERR_NETWORK") {
         setError("Can't reach the server. Is your backend running?");
       } else {
         setError(err.response?.data?.message || "Invalid email or password");
       }
+    } finally {
       setLoading(false);
     }
   };

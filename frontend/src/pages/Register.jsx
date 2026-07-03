@@ -68,23 +68,25 @@ function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setServerError("");
+
     if (!validate()) return;
 
     try {
       setLoading(true);
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/register`,
-        {
-          username,
+
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+        username,
+        email,
+        password,
+        avatar: "",
+        status: "Available",
+      });
+
+      navigate("/verify-email", {
+        state: {
           email,
-          password,
-          avatar: "",
-          status: "Available",
         },
-      );
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-      navigate("/chat");
+      });
     } catch (err) {
       setServerError(err.response?.data?.message || "Registration failed");
     } finally {
