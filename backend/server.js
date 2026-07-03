@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 // ✅ Sabse pehle config load karein
 dotenv.config();
+console.log("RESEND KEY LOADED:", process.env.RESEND_API_KEY ? "YES" : "NO");
 
 import express from "express";
 import http from "http";

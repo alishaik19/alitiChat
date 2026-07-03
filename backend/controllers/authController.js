@@ -1,7 +1,7 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import crypto from "crypto";
 import PendingUser from "../models/PendingUser.js";
 
@@ -12,17 +12,29 @@ const generateToken = (id) => {
   });
 };
 
-// ✅ SHARED MAIL TRANSPORTER (IPv6 fix ke saath)
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  family: 4, // 👈 IPv6 unreachable issue fix (Render/Railway jaise platforms ke liye)
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+// ✅ RESEND CLIENT
+let resendClient = null;
+const getResend = () => {
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendClient;
+};
+
+// ✅ SHARED EMAIL HELPER
+const sendEmail = async ({
+  to,
+  subject,
+  html,
+  fromName = "Ali☕ Verification",
+}) => {
+  await getResend().emails.send({
+    from: `${fromName} <onboarding@resend.dev>`,
+    to,
+    subject,
+    html,
+  });
+};
 
 // =======================
 // ✅ REGISTER CONTROLLER
@@ -63,8 +75,7 @@ export const register = async (req, res) => {
       expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
-    await transporter.sendMail({
-      from: `"Ali☕ Verification" <${process.env.EMAIL_USER}>`,
+    await sendEmail({
       to: email,
       subject: "Verify Your Email",
       html: `
@@ -171,8 +182,7 @@ export const resendOTP = async (req, res) => {
 
     await pendingUser.save();
 
-    await transporter.sendMail({
-      from: `"Ali☕ Verification" <${process.env.EMAIL_USER}>`,
+    await sendEmail({
       to: email,
       subject: "New Verification OTP",
       html: `
@@ -187,6 +197,7 @@ export const resendOTP = async (req, res) => {
       message: "OTP sent again",
     });
   } catch (error) {
+    console.error("RESEND OTP ERROR:", error);
     res.status(500).json({
       message: error.message,
     });
@@ -245,7 +256,7 @@ export const login = async (req, res) => {
 };
 
 // =====================================
-// ✅ FORGOT PASSWORD (Gmail Link Logic)
+// ✅ FORGOT PASSWORD (Resend Link Logic)
 // =====================================
 export const forgotPassword = async (req, res) => {
   try {
@@ -268,10 +279,10 @@ export const forgotPassword = async (req, res) => {
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-    const mailOptions = {
-      from: `"Support Ali☕" <${process.env.EMAIL_USER}>`,
+    await sendEmail({
       to: user.email,
       subject: "Password Reset Request",
+      fromName: "Support Ali☕",
       html: `
         <div style="font-family: sans-serif; padding: 20px; color: #333;">
           <h2>Password Reset</h2>
@@ -280,9 +291,8 @@ export const forgotPassword = async (req, res) => {
           <p>Yeh link sirf 10 minutes ke liye valid hai.</p>
         </div>
       `,
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
     res.status(200).json({ message: "Reset link sent to your Gmail!" });
   } catch (error) {
     console.error("MAIL_ERROR:", error);
