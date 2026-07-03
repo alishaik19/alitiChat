@@ -17,9 +17,6 @@ import { initSocket } from "./socket/socket.js";
 const app = express();
 const server = http.createServer(app);
 
-// Debugging ke liye (Server start hote hi console mein dikhega)
-console.log("Checking FRONTEND_URL:", process.env.FRONTEND_URL);
-
 initSocket(server);
 
 app.use(

@@ -321,6 +321,10 @@ function ChatWindow({ selectedUser, onBack, onChatCleared }) {
               <div className="message-container">
                 <div
                   className={`message ${activeMenuId === msg._id ? "menu-active" : ""}`}
+                  onMouseEnter={() => setShowDotsId(msg._id)}
+                  onMouseLeave={() => {
+                    if (activeMenuId !== msg._id) setShowDotsId(null);
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowDotsId(showDotsId === msg._id ? null : msg._id);
@@ -422,7 +426,6 @@ function ChatWindow({ selectedUser, onBack, onChatCleared }) {
         })}
         <div ref={bottomRef} />
       </div>
-
       {/* SCROLL BUTTON */}
       {showScrollBtn && (
         <button

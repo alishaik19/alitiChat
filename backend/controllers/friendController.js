@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import Message from "../models/Message.js";
 
 // ================= SEND FRIEND REQUEST =================
 export const sendFriendRequest = async (req, res) => {
@@ -223,12 +224,8 @@ export const toggleArchiveFriend = async (req, res) => {
 };
 
 // ================= DELETE CHAT (messages only, friendship stays) =================
-// NOTE: this project's current code doesn't include a Message model,
-// so this is wired to call your messages API once you have one —
-// e.g. Message.deleteMany({ chatId: [userId, friendId].sort().join("_") })
-// or however you identify a conversation between two users.
-// For now it just acknowledges the request; plug in your real delete
-// logic here so the endpoint actually clears stored messages.
+// ✅ One-sided delete — sirf is user ke liye chat gayab hogi,
+// doosre user ko uski chat history dikhti rahegi
 export const deleteChatHistory = async (req, res) => {
   try {
     const { userId, friendId } = req.body;
@@ -237,13 +234,15 @@ export const deleteChatHistory = async (req, res) => {
       return res.status(400).json({ message: "Missing user ids" });
     }
 
-    // TODO: replace with your real message-deletion query, e.g.:
-    // await Message.deleteMany({
-    //   $or: [
-    //     { sender: userId, receiver: friendId },
-    //     { sender: friendId, receiver: userId },
-    //   ],
-    // });
+    await Message.updateMany(
+      {
+        $or: [
+          { senderId: userId, receiverId: friendId },
+          { senderId: friendId, receiverId: userId },
+        ],
+      },
+      { $addToSet: { deletedFor: userId } },
+    );
 
     res.json({ message: "Chat history deleted" });
   } catch (err) {
@@ -279,6 +278,9 @@ export const removeFriend = async (req, res) => {
 };
 
 // ================= GET ACCEPTED FRIENDS LIST =================
+// ✅ Ab har friend ke saath lastMessageTime aur unreadCount bhi bhejta hai
+// taaki Sidebar sequence + unread badge hamesha database se sahi bane,
+// chahe user offline ho ya naye browser/device se login kare
 export const getFriendsList = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -292,19 +294,48 @@ export const getFriendsList = async (req, res) => {
     // de-dupe by userId — belt and braces in case old duplicate
     // entries exist in the DB from before this fix
     const seen = new Set();
-    const friends = [];
+    const friendEntries = [];
 
     for (const f of user.friends) {
       if (f.status !== "accepted" || !f.userId) continue;
       const key = f.userId._id.toString();
       if (seen.has(key)) continue;
       seen.add(key);
-      friends.push({
-        ...f.userId.toObject(),
-        pinned: f.pinned,
-        archived: f.archived,
-      });
+      friendEntries.push(f);
     }
+
+    const friends = await Promise.all(
+      friendEntries.map(async (f) => {
+        const friendId = f.userId._id;
+
+        // Sabse recent message (dono directions), jo mere liye delete na kiya ho
+        const lastMsg = await Message.findOne({
+          $or: [
+            { senderId: userId, receiverId: friendId },
+            { senderId: friendId, receiverId: userId },
+          ],
+          deletedFor: { $ne: userId },
+        })
+          .sort({ createdAt: -1 })
+          .select("createdAt");
+
+        // Unread count: friend ne mujhe bheja, maine "seen" nahi kiya
+        const unreadCount = await Message.countDocuments({
+          senderId: friendId,
+          receiverId: userId,
+          status: { $ne: "seen" },
+          deletedFor: { $ne: userId },
+        });
+
+        return {
+          ...f.userId.toObject(),
+          pinned: f.pinned,
+          archived: f.archived,
+          lastMessageTime: lastMsg ? lastMsg.createdAt : null,
+          unreadCount,
+        };
+      }),
+    );
 
     res.json(friends);
   } catch (err) {

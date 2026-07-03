@@ -169,6 +169,7 @@ function Sidebar({ onSelectUser, onOpenProfile, currentUser, onChatDeleted }) {
   }, []);
 
   // FETCH ACCEPTED FRIENDS
+  // FETCH ACCEPTED FRIENDS
   const fetchFriends = async () => {
     if (!currentUserId) return;
     try {
@@ -181,12 +182,27 @@ function Sidebar({ onSelectUser, onOpenProfile, currentUser, onChatDeleted }) {
       }));
       setFriends(updatedFriends);
 
-      // ✅ Agar backend friend ke saath lastMessageTime deta hai, to initial sequence set karo
+      // ✅ lastActivity — server ka time authoritative
       setLastActivity((prev) => {
         const updated = { ...prev };
         updatedFriends.forEach((f) => {
-          if (f.lastMessageTime && !updated[f._id]) {
-            updated[f._id] = new Date(f.lastMessageTime).getTime();
+          if (f.lastMessageTime) {
+            const serverTime = new Date(f.lastMessageTime).getTime();
+            if (!updated[f._id] || serverTime > updated[f._id]) {
+              updated[f._id] = serverTime;
+            }
+          }
+        });
+        return updated;
+      });
+
+      // ✅ unreadCount — server ka count authoritative
+      // (isse user B ka browser band ho tab bhi wapas aane par sahi count dikhega)
+      setUnreadCounts((prev) => {
+        const updated = { ...prev };
+        updatedFriends.forEach((f) => {
+          if (typeof f.unreadCount === "number") {
+            updated[f._id] = f.unreadCount;
           }
         });
         return updated;
