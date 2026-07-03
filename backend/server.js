@@ -21,7 +21,11 @@ initSocket(server);
 
 app.use(
   cors({
-    origin: ["http://localhost:5173", "https://your-vercel-app.vercel.app"],
+    origin: [
+      "http://localhost:5173",
+      "https://aliti-chat.vercel.app",
+      "https://aliti-chat-pxhglzqpg-alishaikh19910-4492s-projects.vercel.app",
+    ],
     credentials: true,
   }),
 );
