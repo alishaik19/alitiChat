@@ -236,10 +236,9 @@ export const login = async (req, res) => {
       token,
     });
   } catch (error) {
-    console.error("LOGIN ERROR:", error);
+    console.error("REGISTER ERROR:", error);
 
     res.status(500).json({
-      success: false,
       message: error.message,
     });
   }
