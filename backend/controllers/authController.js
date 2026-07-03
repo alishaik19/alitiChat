@@ -12,6 +12,18 @@ const generateToken = (id) => {
   });
 };
 
+// ✅ SHARED MAIL TRANSPORTER (IPv6 fix ke saath)
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  family: 4, // 👈 IPv6 unreachable issue fix (Render/Railway jaise platforms ke liye)
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
 // =======================
 // ✅ REGISTER CONTROLLER
 // =======================
@@ -51,14 +63,6 @@ export const register = async (req, res) => {
       expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
     await transporter.sendMail({
       from: `"Ali☕ Verification" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -76,11 +80,13 @@ export const register = async (req, res) => {
       message: "OTP sent to your email",
     });
   } catch (error) {
+    console.error("REGISTER ERROR:", error);
     res.status(500).json({
       message: error.message,
     });
   }
 };
+
 export const verifyEmail = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -143,6 +149,7 @@ export const verifyEmail = async (req, res) => {
     });
   }
 };
+
 export const resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
@@ -163,14 +170,6 @@ export const resendOTP = async (req, res) => {
     pendingUser.expiresAt = Date.now() + 10 * 60 * 1000;
 
     await pendingUser.save();
-
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
 
     await transporter.sendMail({
       from: `"Ali☕ Verification" <${process.env.EMAIL_USER}>`,
@@ -236,8 +235,7 @@ export const login = async (req, res) => {
       token,
     });
   } catch (error) {
-    console.error("REGISTER ERROR:");
-    console.error(error);
+    console.error("LOGIN ERROR:", error);
 
     res.status(500).json({
       success: false,
@@ -267,14 +265,6 @@ export const forgotPassword = async (req, res) => {
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 600000; // 10 Mins
     await user.save();
-
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 

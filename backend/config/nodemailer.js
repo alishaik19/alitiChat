@@ -1,6 +1,18 @@
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 
+// ✅ Common transporter (isse alag file bana ke reuse karna best practice hai)
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true, // true for port 465
+  family: 4, // 👈 IMPORTANT: IPv6 issue fix - Render jaise platforms pe IPv6 se Gmail unreachable hota hai
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // App Password use karein
+  },
+});
+
 // Reset Password Link bhejne ka function
 export const forgotPassword = async (req, res) => {
   try {
@@ -11,20 +23,10 @@ export const forgotPassword = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // 1. Reset Token generate karein (10 mins ke liye valid)
     const resetToken = crypto.randomBytes(20).toString("hex");
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 600000; // 10 mins
     await user.save();
-
-    // 2. Nodemailer Transporter setup (Apni Gmail details dalein)
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS, // App Password use karein
-      },
-    });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
@@ -39,6 +41,7 @@ export const forgotPassword = async (req, res) => {
     await transporter.sendMail(mailOptions);
     res.json({ message: "Reset link sent to your email!" });
   } catch (error) {
+    console.error("FORGOT PASSWORD EMAIL ERROR:", error);
     res.status(500).json({ message: error.message });
   }
 };
