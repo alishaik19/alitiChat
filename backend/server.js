@@ -21,8 +21,7 @@ initSocket(server);
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "*", // .env se origin uthayega
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: ["http://localhost:5173", "https://your-vercel-app.vercel.app"],
     credentials: true,
   }),
 );
