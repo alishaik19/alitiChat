@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
+import PendingUser from "../models/PendingUser.js";
 
 // 🔐 TOKEN GENERATOR
 const generateToken = (id) => {
@@ -38,15 +39,16 @@ export const register = async (req, res) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    const user = await User.create({
+    await PendingUser.deleteMany({
+      email: email.toLowerCase(),
+    });
+
+    await PendingUser.create({
       username,
-      email,
+      email: email.toLowerCase(),
       password: hashedPassword,
-      avatar: "",
-      status: "Available",
-      isVerified: false,
-      verificationOTP: otp,
-      verificationOTPExpires: Date.now() + 10 * 60 * 1000,
+      otp,
+      expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
     const transporter = nodemailer.createTransport({
@@ -83,37 +85,53 @@ export const verifyEmail = async (req, res) => {
   try {
     const { email, otp } = req.body;
 
-    const user = await User.findOne({ email });
+    const pendingUser = await PendingUser.findOne({
+      email: email.toLowerCase(),
+    });
 
-    if (!user) {
+    if (!pendingUser) {
       return res.status(404).json({
-        message: "User not found",
+        message: "Verification request not found",
       });
     }
 
-    if (user.isVerified) {
-      return res.status(400).json({
-        message: "Email already verified",
-      });
-    }
-
-    if (user.verificationOTP !== otp) {
+    if (pendingUser.otp !== otp) {
       return res.status(400).json({
         message: "Invalid OTP",
       });
     }
 
-    if (user.verificationOTPExpires < Date.now()) {
+    if (pendingUser.expiresAt < Date.now()) {
       return res.status(400).json({
         message: "OTP expired",
       });
     }
 
-    user.isVerified = true;
-    user.verificationOTP = null;
-    user.verificationOTPExpires = null;
+    const existingUser = await User.findOne({
+      $or: [{ email: pendingUser.email }, { username: pendingUser.username }],
+    });
 
-    await user.save();
+    if (existingUser) {
+      await PendingUser.deleteOne({
+        _id: pendingUser._id,
+      });
+
+      return res.status(400).json({
+        message: "Account already exists",
+      });
+    }
+
+    await User.create({
+      username: pendingUser.username,
+      email: pendingUser.email,
+      password: pendingUser.password,
+      avatar: "",
+      status: "Available",
+    });
+
+    await PendingUser.deleteOne({
+      _id: pendingUser._id,
+    });
 
     res.status(200).json({
       success: true,
@@ -129,26 +147,22 @@ export const resendOTP = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
+    const pendingUser = await PendingUser.findOne({
+      email: email.toLowerCase(),
+    });
 
-    if (!user) {
+    if (!pendingUser) {
       return res.status(404).json({
-        message: "User not found",
-      });
-    }
-
-    if (user.isVerified) {
-      return res.status(400).json({
-        message: "Email already verified",
+        message: "Verification request not found",
       });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    user.verificationOTP = otp;
-    user.verificationOTPExpires = Date.now() + 10 * 60 * 1000;
+    pendingUser.otp = otp;
+    pendingUser.expiresAt = Date.now() + 10 * 60 * 1000;
 
-    await user.save();
+    await pendingUser.save();
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -162,7 +176,11 @@ export const resendOTP = async (req, res) => {
       from: `"Ali☕ Verification" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "New Verification OTP",
-      html: `<h1>${otp}</h1>`,
+      html: `
+        <h2>Email Verification</h2>
+        <h1>${otp}</h1>
+        <p>This code expires in 10 minutes.</p>
+      `,
     });
 
     res.status(200).json({
@@ -200,14 +218,6 @@ export const login = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Invalid credentials",
-      });
-    }
-
-    // ✅ EMAIL VERIFICATION CHECK
-    if (!user.isVerified) {
-      return res.status(403).json({
-        success: false,
-        message: "Please verify your email first",
       });
     }
 

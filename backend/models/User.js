@@ -58,23 +58,7 @@ const userSchema = new mongoose.Schema(
 
     friends: [friendSchema],
 
-    // ✅ Email Verification
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-
-    verificationOTP: {
-      type: String,
-      default: null,
-    },
-
-    verificationOTPExpires: {
-      type: Date,
-      default: null,
-    },
-
-    // ✅ Password Reset
+    // Password Reset
     resetPasswordToken: {
       type: String,
       default: null,
